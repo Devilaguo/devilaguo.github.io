@@ -1,0 +1,752 @@
+Git基础教程
+
+
+
+简介
+
+- Git是一个开源的分布式版本控制系统，用于敏捷高效地处理任何或小或大的项目。
+- Git 与常用的版本控制工具 CVS, SVN 等不同，它采用了分布式版本库的方式，不必服务器端软件支持。
+
+SVN 区别点
+
+- GIT是分布式的，SVN不是，这是GIT和其它非分布式的版本控制系统，例如SVN，CVS等，最核心的区别。
+- GIT把内容按元数据方式存储，而SVN是按文件：所有的资源控制系统都是把文件的元信息隐藏在一个类似.svn,.cvs等的文件夹里。即GIT管理的是修改，而SVN管理的是文件。
+- GIT分支和SVN的分支不同：分支在SVN中一点不特别，就是版本库中的另外的一个目录。
+- GIT没有一个全局的版本号，而SVN有：目前为止这是跟SVN相比GIT缺少的最大的一个特征。
+- GIT的内容完整性要优于SVN：GIT的内容存储使用的是SHA-1哈希算法。这能确保代码内容的完整性，确保在遇到磁盘故障和网络问题时降低对版本库的破坏。
+
+配置
+
+Git 提供了一个叫做 git config 的工具，专门用来配置或读取相应的工作环境变量。
+
+三种不同级别的配置
+
+- git config --system
+系统用户级别所拥有的仓库配置值，基本不用到
+- git config --global
+全局的仓库配置值，会去读写每个用户下的~/.gitconfig文件
+- git config --local
+局部的仓库配置值，会去读写某个项目下的.git/config文件
+
+设置用户信息
+
+  设置用户名和邮箱，配置的用户名和邮件地址将在版本库提交时作为提交者的用户名和邮件地址。
+
+
+
+    git config --global user.name "hyn"
+    git config --global user.email "example@qq.com"
+
+  如果用 --global选项，那么更改的配置文件就是位于你用户主目录下的那个配置，以后你所有的项目都会默认使用这里配置的用户信息。
+  如果要在某个特定的项目中使用其他名字或者邮箱，只要在对应的项目目录下去掉--global选项重新配置或者在对应的项目目录下把--global 换成--local即可，新的设定保存在当前项目的 .git/config 文件里。
+
+设置别名
+
+  可通过alias去修改git命令的别名
+
+- git status 是用来查看文件修改的命令，可以用git st 代替
+- git pull 是用来拉取远程仓库代码的命令，可以用git pl 代替
+- git push 是用来将本地修改推送到远程仓库的命令，可以用git ps 代替
+
+
+
+    git config --global alias.st status
+    git config --global alias.pl pull
+    git config --global alias.ps push
+
+查看配置信息
+
+  查看整个配置信息：git config --local --list
+
+
+
+    core.repositoryformatversion=0
+    core.filemode=true
+    core.bare=false
+    core.logallrefupdates=true
+    core.ignorecase=true
+    core.precomposeunicode=true
+    user.name=hyn
+    user.email=example@163.com
+    alias.ps=push
+
+  查找某个变量的设置：git config --local user.name
+
+
+
+    hyn
+
+工作区、暂存区和版本库
+
+基本概念
+
+- 工作区：你电脑里项目的目录。
+- 暂存区：英文叫stage,一般存放在”git目录”下的index文件（.git/index）中，所以我们把暂存区有时也叫作索引（index）。
+- 版本库：工作区有一个隐藏目录.git，这个不算工作区，而是Git的版本库。
+  
+  工作区、暂存区和版本库之间的关系.png
+- 图中左侧为工作区，右侧为版本库。在版本库中标记为 stage的区域是暂存区，标记为master的是项目的master分支。
+- 图中我们可以看出此时HEAD实际是指向 master 分支的一个游标。所以图示的命令中出现 HEAD 的地方可以用 master 来替换。
+- 当对工作区修改的文件执行git add命令时，暂存区的目录树被更新即把工作区的修改添加到暂存区；当执行提交操作git commit时，暂存区的目录树写到版本库中，master 分支会做相应的更新。即把暂存区的内容提交到当前分支
+- 当执行git reset HEAD命令时，暂存区的目录树会被重写，被 master 分支指向的目录树所替换，但是工作区不受影响。
+- 当执行 git rm --cached <file>命令时，会直接从暂存区删除文件，工作区则不做出改变。
+- 当执行git checkout .或者git checkout -- <file>命令时，会用暂存区全部或指定的文件替换工作区的文件。这个操作很危险，会清除工作区中未添加到暂存区的改动。
+- 当执行git checkout HEAD .或者git checkout HEAD <file>命令时，会用 HEAD 指向的 master 分支中的全部或者部分文件替换暂存区和以及工作区中的文件。这个命令也是极具危险性的，因为不但会清除工作区中未提交的改动，也会清除暂存区中未提交的改动。
+
+版本库
+
+  版本库又名仓库，英文名repository，可以简单理解成一个目录，这个目录里面的所有文件都可以被Git管理起来，每个文件的修改、删除，Git都能跟踪，以便任何时刻都可以追踪历史，或者在将来某个时刻可以“还原”。
+
+新建本地仓库
+
+  使用 git init 命令来初始化一个 Git 仓库， 在执行完成 git init 命令后，Git 仓库会生成一个 .git 目录，该目录包含了资源的所有元数据，其他的项目目录保持不变。
+
+- 使用当前目录作为仓库: git init
+- 使用执行目录作为仓库: git init 目录地址
+
+复制远程仓库
+
+  使用 git clone从现有的远程仓库中拷贝项目
+
+- 当前目录下拷贝: git clone 仓库地址
+- 拷贝到指定目录: git clone 仓库地址 目录地址
+
+基本操作
+
+git init
+
+  创建一个空的Git存储库或重新初始化一个现有的存储库。
+
+- 摘要
+
+
+
+    git init [-q | --quiet] [--bare] [--template=<template_directory>]
+          [--separate-git-dir <git dir>]
+          [--shared[=<permissions>]] [directory]
+
+- 描述
+此命令创建一个空的Git存储库，会在当前目录下生成一个.git目录，该目录下包含objects, refs/heads, refs/tags和模版文件。该命令还创建了一个master分支，以及指向master的一个指针叫HEAD。
+- 示例
+
+
+
+    $ mkdir demo
+    $ cd demo
+    $ git init 
+    
+    Initialized empty Git repository in /Users/huangyangneng/Documents/workspace/git/demo/.git/
+
+在demo目录下创建了一个空的git仓库
+
+
+
+    $ ls -a 
+    .    ..    .git
+
+git clone
+
+  克隆一个远程仓库到本地目录。
+
+- 概要
+
+
+
+    git clone [--template=<template_directory>]
+          [-l] [-s] [--no-hardlinks] [-q] [-n] [--bare] [--mirror]
+          [-o <name>] [-b <name>] [-u <upload-pack>] [--reference <repository>]
+          [--dissociate] [--separate-git-dir <git dir>]
+          [--depth <depth>] [--[no-]single-branch] [--no-tags]
+          [--recurse-submodules[=<pathspec>]] [--[no-]shallow-submodules]
+          [--jobs <n>] [--] <repository> [<directory>]
+
+- 描述
+克隆远程仓库到当前目录，并为克隆下来的本地仓库的每个分支创建远程跟踪分支(可使用git branch -r查看)，并从克隆检出的存储库作为当前活动分支的初始分支。
+在克隆之后，没有参数的普通git提取将更新所有远程跟踪分支，并且没有参数的git pull将会把远程主分支合并到当前主分支(如果有的话)。
+- 示例
+
+
+
+    $ git clone https://github.com/huangyangneng/demo.git
+    
+    Cloning into 'demo'...
+    warning: You appear to have cloned an empty repository.
+    Checking connectivity... done.
+    
+    克隆完后，会在当前目录下生成一个demo文件夹。进入demo文件夹，可以看到有一个.git目录。
+
+git add
+
+  将修改过的文件添加到缓存区中
+
+- 摘要
+
+
+
+    git add [--verbose | -v] [--dry-run | -n] [--force | -f] [--interactive | -i] [--patch | -p]
+          [--edit | -e] [--[no-]all | --[no-]ignore-removal | [--update | -u]]
+          [--intent-to-add | -N] [--refresh] [--ignore-errors] [--ignore-missing] [--renormalize]
+          [--chmod=(+|-)x] [--] [<pathspec>…]
+
+- 描述
+此命令将修改过的文件添加到到暂存区，作为下一次准备提交的内容。 它通常将现有路径下的当前修改内容作为一个整体添加，但是通过一些选项，它也可以用于添加只对文件进行一些更改，或删除。
+暂存区保存着当前修改内容的快照，并且将该快照作为下一个提交的内容。 因此，在对仓库进行任何更改之后，并且在运行git commit命令之前，必须使用git add命令将任何新的或修改的文件添加到暂存区中。
+该命令可以在提交之前多次执行。它只在运行git add命令时添加指定修改的内容; 如果希望随后的更改包含在下一个提交中，那么必须再次运行git add将新的内容添加到暂存区中。
+默认情况下，git add命令不会添加忽略的文件。 如果在命令行上显式指定了任何忽略的文件，git add命令都将失败，并显示一个忽略的文件列表。由Git执行的目录递归或文件名遍历所导致的忽略文件将被默认忽略。 git add命令可以用-f(force)选项添加被忽略的文件。
+- 示例
+
+
+
+    $ touch README.md
+    $ echo hello world > README.md
+    $ git add -A 
+    
+    git add -u [<path>]：把<path>中所有跟踪文件中被修改过或已删除文件的信息添加到暂存区。它不会处理那些不被跟踪的文件。省略<path>表示 . ,即当前目录。
+    git add -A <path>：表示把中所有跟踪文件中被修改过或已删除文件和所有未跟踪的文件信息添加到暂存区中。省略<path>表示 . ,即当前目录。
+
+git status
+
+  查看当前仓库的状态
+
+- 摘要
+
+
+
+    git status [<options>…] [--] [<pathspec>…]
+
+- 概述
+  显示仓库中未被git commit过的所有文件状态信息，包括被追踪文件的修改、删除和新建未执行git add的未被追踪的文件。
+- 示例
+在每次执行 git commit之前先使用git status检查文件状态是一个很好的习惯, 这样能防止你不小心提交了您不想提交的东西。
+通过git status -uno可以只列出所有已经被git管理的且被修改但没提交的文件。
+通过git status -s以获得简短的结果输出,如果没加该参数会详细输出内容.
+
+
+
+    $ git status 
+    
+    
+    On branch master
+    
+    Initial commit
+    
+    Changes to be committed: (已经在stage区, 等待添加到HEAD中的文件)
+      (use "git rm --cached <file>..." to unstage) 
+    
+        new file:   README.md
+        new file:   test.txt
+    
+    Changes not staged for commit:(有修改, 但是没有被添加到stage区的文件)
+      (use "git add <file>..." to update what will be committed)
+      (use "git checkout -- <file>..." to discard changes in working directory)
+    
+        modified:   test.txt
+    
+    Untracked files:(没有tracked过的文件, 即从没有add过的文件)
+      (use "git add <file>..." to include in what will be committed)
+    
+        hello.txt
+
+git diff
+
+  用来显示已写入缓存与已修改但尚未写入缓存的改动的区别。此命令比较的是工作目录中当前文件和暂存区域快照之间的差异,也就是修改之后还没有暂存起来的变化内容。
+
+- 摘要
+
+
+
+    git diff [options] [<commit>] [--] [<path>…]
+    git diff [options] --cached [<commit>] [--] [<path>…]
+    git diff [options] <commit> <commit> [--] [<path>…]
+    git diff [options] <blob> <blob>
+    git diff [options] [--no-index] [--] <path> <path>
+
+- 概述
+  显示工作树和索引或树之间的变化，索引和树之间的变化，两棵树之间的变化，两个blob对象之间的变化，或者磁盘上两个文件之间的变化。
+- 示例
+  - 比较工作区和暂存区域之间的差异也就是修改之后还没有暂存起来的变化内容：git diff
+  - 比较当前文件和暂存区文件差异：git diff <file>
+  - 比较两次提交之间的差异：git diff id1 id2
+  - 在两个分支之间比较：git diff branch1 branch2
+  - 比较暂存区和版本库差异：git diff --staged
+  - 查看已缓存的改动： git diff --cached
+  - 查看已缓存的与未缓存的所有改动：git diff HEAD
+  - 仅仅比较统计信息：git diff --stat
+
+
+
+    # 比较工作区和暂存区域之间的差异
+    $ git diff
+    
+    diff --git a/hello.txt b/hello.txt
+    index ce01362..b1d9f39 100644
+    --- a/hello.txt
+    +++ b/hello.txt
+    @@ -1 +1,2 @@
+     hello
+    +git diff
+    
+    # 比较当前文件和暂存区文件差异
+    $ git diff test.txt
+    
+    diff --git a/test.txt b/test.txt
+    index ed894ce..3b68ed8 100644
+    --- a/test.txt
+    +++ b/test.txt
+    @@ -1,2 +1,3 @@
+     test
+     dte
+    +git diff test
+    
+    # 比较两次提交之间的差异
+    
+    $ git diff 7e7c298660207f30568dcd5efc127392988916e1 fb89408bc73a5ebaa8fa0536ddadda7a92b07f0f
+    
+    diff --git a/test.txt b/test.txt
+    index ed894ce..9daeafb 100644
+    --- a/test.txt
+    +++ b/test.txt
+    @@ -1,2 +1 @@
+     test
+    -dte
+    
+    # 查看已缓存的与未缓存的所有改动
+    $ git diff HEAD
+    
+    diff --git a/hello.txt b/hello.txt
+    new file mode 100644
+    index 0000000..b1d9f39
+    --- /dev/null
+    +++ b/hello.txt
+    @@ -0,0 +1,2 @@
+    +hello
+    +git diff
+    diff --git a/test.txt b/test.txt
+    index ed894ce..3b68ed8 100644
+    --- a/test.txt
+    +++ b/test.txt
+    @@ -1,2 +1,3 @@
+     test
+     dte
+    +git diff testg
+    
+    # 比较统计信息
+    $ git diff --stat
+    
+    hello.txt | 1 +
+     test.txt  | 1 +
+     2 files changed, 2 insertions(+)
+
+git commit
+
+  将缓存区内容添加到仓库中
+
+- 摘要
+
+
+
+    git commit [-a | --interactive | --patch] [-s] [-v] [-u<mode>] [--amend]
+           [--dry-run] [(-c | -C | --fixup | --squash) <commit>]
+           [-F <file> | -m <msg>] [--reset-author] [--allow-empty]
+           [--allow-empty-message] [--no-verify] [-e] [--author=<author>]
+           [--date=<date>] [--cleanup=<mode>] [--[no-]status]
+           [-i | -o] [-S[<keyid>]] [--] [<file>…]
+
+- 概述
+  git commit命令将暂存区的当前内容与描述更改的用户和日志消息一起存储在新的提交中。
+要添加的内容可以通过以下几种方式指定：
+- 在使用git commit命令之前，通过使用git add将工作区的内容添加到暂存区；
+- 通过使用带有-a选项的git commit命令来添加从所有已知文件(即所有已经在暂存区中列出的文件)，并自动从工作树中删除执行过“git rm”的文件;
+- 通过使用git rm从工作树和暂存区中删除文件，再次使用git commit命令;
+- 通过将文件作为参数列出到git commit命令(不使用--interactive或--patch选项)，在这种情况下，提交将忽略暂存区中分段的更改，而是记录列出的文件的当前内容;
+- 通过使用--interactive或--patch选项与git commit命令一起确定除了暂存区中的内容之外哪些文件应该是提交的一部分，然后才能完成操作。
+- 示例
+
+
+
+    $ vi commit.xt #添加文件，文件内容为commit
+    $ git status #查看当前状态
+    
+    On branch master
+    Your branch is based on 'origin/master', but the upstream is gone.
+      (use "git branch --unset-upstream" to fixup)
+    Untracked files:
+      (use "git add <file>..." to include in what will be committed)
+    
+        commit.txt
+    
+    nothing added to commit but untracked files present (use "git add" to track)
+    
+    $ git add commit.txt #提交到暂存区
+    $ git status #查看当前状态
+    
+    On branch master
+    Your branch is based on 'origin/master', but the upstream is gone.
+      (use "git branch --unset-upstream" to fixup)
+    Changes to be committed:
+      (use "git reset HEAD <file>..." to unstage)
+    
+        new file:   commit.txt
+    
+    $ git commit -m "add commit.txt" #提交修改
+    
+    [master deb9eb3] add commit.txt
+     1 file changed, 1 insertion(+)
+     create mode 100644 commit.txt
+    
+    $ git status #查看当前状态
+    On branch master
+    Your branch is based on 'origin/master', but the upstream is gone.
+      (use "git branch --unset-upstream" to fixup)
+    nothing to commit, working directory clean
+    
+    $ git log #查看提交记录
+    commit deb9eb3cd2ec92b12417b8d20db884db7d4a7711
+    Author: huangyangneng <test@qq.com>
+    Date:   Sat May 26 11:10:21 2018 +0800
+    
+        add commit.txt
+
+git log
+
+  查看历史提交记录
+
+- 摘要
+
+
+
+    git log [<options>] [<revision range>] [[\--] <path>…]
+
+- 概述
+  该命令采用适用于git rev-list命令的选项来控制显示的内容以及适用于git diff- *命令的选项来控制每个提交的更改是如何显示的。
+- 示例
+  - 显示提交历史：git log
+  - 查看历史记录的简洁的版本：git log --oneline
+  - 查看所有未被合并过的提交信息：git log --no-merges
+  - 查看所有合并过的提交历史记录：git log --merges
+  - 查看历史中什么时候出现了分支、合并：git log g--oneline --graph
+  - 逆向显示所有日志：git log --reverse --oneline
+  - 查找指定用户的提交日志：git log --author=huangyangneng --oneline
+  - 显示最近几次的提交：git log -3
+  - 显示某次提交以及之前的记录：git log commitId
+  - 显示指定时间之后的提交(不包含当前日期--since，--affter)：git log --oneline --after={2018-04-18}
+  - 显示指定时间之前的提交(包含当前日期--until，--before)：git log --oneline --before={1.day.ago}
+
+
+
+    $ git log  commit deb9eb3cd2ec92b12417b8d20db884db7d4a7711Author: huangyangneng <test@qq.com>Date:   Sat May 26 11:10:21 2018 +0800    add commit.txtcommit cebe2945e0262aace6df11f02e3d96156807a12eAuthor: huangyangneng <test@qq.com>Date:   Sat May 26 11:09:19 2018 +0800    add diff.txtcommit bbe2af51886d10268c7faabbaeff5b87634cc5cdAuthor: huangyangneng <test@qq.com>Date:   Sat May 26 11:00:19 2018 +0800    testcommit 6237009b04e1a4cb35bc4fa726834826035ea581Author: huangyangneng <test@qq.com>Date:   Sat May 26 10:59:31 2018 +0800    commitcommit 78ea960945cb7e5ed7c38e4129f6f3fa59a365f8Author: huangyangneng <test@qq.com>Date:   Sat May 26 10:58:35 2018 +0800    git commit testcommit 7e7c298660207f30568dcd5efc127392988916e1Author: huangyangneng <test@qq.com>Date:   Sat May 26 10:14:43 2018 +0800    testcommit fb89408bc73a5ebaa8fa0536ddadda7a92b07f0fAuthor: huangyangneng <test@qq.com>Date:   Sat May 26 10:14:16 2018 +0800    test$ git log --oneline #查看历史记录的简洁的版本deb9eb3 add commit.txtcebe294 add diff.txtbbe2af5 test6237009 commit78ea960 git commit test7e7c298 testfb89408 test$ git log --oneline -3 #显示最近3次的提交deb9eb3 add commit.txtcebe294 add diff.txtbbe2af5 test$ git log --oneline --before={2018-05-26} #显示2018-05-26之前的提交deb9eb3 add commit.txtcebe294 add diff.txtbbe2af5 test6237009 commit78ea960 git commit test7e7c298 testfb89408 test
+
+git reset
+
+  用于将当前HEAD复位到指定状态。一般用于撤消之前的一些操作。
+
+- 摘要
+
+
+
+    git reset [-q] [<tree-ish>] [--] <paths>…git reset (--patch | -p) [<tree-ish>] [--] [<paths>…]git reset [--soft | --mixed [-N] | --hard | --merge | --keep] [-q] [<commit>]
+
+- 概述
+  在第一和第二种形式中，将条目从<tree-ish>复制到索引。 在第三种形式中，将当前分支头(HEAD)设置为<commit>，可选择修改索引和工作树进行匹配。所有形式的<tree-ish>/<commit>默认为 HEAD 。这里的 HEAD 关键字指的是当前分支最末梢最新的一个提交。也就是版本库中该分支上的最新版本。
+git reset [--hard|soft|mixed|merge|keep] [<commit>或HEAD]：将当前的分支重设(reset)到指定的<commit>或者HEAD(默认，如果不显示指定<commit>，默认是HEAD，即最新的一次提交)，并且根据[mode]有可能更新索引和工作目录。mode的取值可以是hard、soft、mixed、merged、keep。
+- --hard：重设(reset) 索引和工作目录，自从<commit>以来在工作目录中的任何改变都被丢弃，并把HEAD指向<commit>。
+- --soft：不触及索引文件或工作树（但重置HEAD到<commit>，就像所有模式一样）。这使得所有更改后的状态变成已暂存，如git status所示。当提交了之后，又发现代码没有提交完整，或者想重新编辑一下提交的信息，可执行git reset --soft HEAD^，让工作目录还跟reset之前一样，不作任何改变。
+- --mixed：重置索引但不重置工作树（即更改的文件被保留为未标记提交），并报告未更新的内容。这是默认操作。
+- --merge：重置索引并更新工作树中不同于<commit>和HEAD之间的文件，但保留索引和工作树之间不同的文件（即那些没有添加的更改）。即回退到<commit>之前的状态，但是工作区的修改不被重置。如果在<commit>和索引之间不同的文件有未分级的更改，则中止重置。
+- --keep：重置索引条目并更新工作树中不同于<commit>和HEAD的文件。如果在<commit>和HEAD之间不同的文件有本地更改，则中止重置。
+- 示例
+  - 回退暂存的文件：git reset HEAD <file>
+  - 回退到上一次提交版本： git reset --hard HEAD^
+  - 回退到上上次提交版本： git reset --hard HEAD^^
+  - 回退到上N次提交版本： git reset --hard HEAD~N
+  - 回退到指定版本：git reset --hard <commitId>
+
+
+
+    $ vi reset.txt #添加文件，内容为reset$ git add reset.txt #添加文件到暂存区$ git status #查看当前状态On branch masterYour branch is based on 'origin/master', but the upstream is gone.  (use "git branch --unset-upstream" to fixup)Changes to be committed:  (use "git reset HEAD <file>..." to unstage)    new file:   reset.txt$ git reset HEAD reset.txt #回退暂存的文件$ git status #查看当前状态On branch masterYour branch is based on 'origin/master', but the upstream is gone.  (use "git branch --unset-upstream" to fixup)Untracked files:  (use "git add <file>..." to include in what will be committed)    reset.txtnothing added to commit but untracked files present (use "git add" to track)
+
+git reflog
+
+  可以查看所有分支的所有操作记录（包括提交、回退、已删除的提交操作记录等）。
+
+- 摘要
+
+
+
+    git reflog <subcommand> <options>
+
+- 概述
+  git reflog 除了能查看所有提交记录外，还能查看会退，已删除等的操作记录。git reflog 每行记录都由版本号（commit id SHA），HEAD值和操作描述三部分组成。版本号在第一列，HEAD值在第二列，操作描述信息在第三列。当我们会退出错时，想回到某个新版本，就可以用git reflog 查看对应的commitId，然后进行会退。
+- 版本号：标识着每一次提交、合并等操作时的版本，相当于唯一标识
+- HEAD值：同样用来标识版本，但是不同于版本号的是，Head值是相对的。
+当HEAD值为HEAD时，表示为提交的最新版本；HEAD^表示为最新版本的上一个版本；HEAD^^表示为最新版本的上上个版本；HEAD~100表示为最新版本的往上第100个版本。HEAD值越小，表示版本越新，越大表示版本生成时间越久。
+在下面例子中，我们发现HEAD值的展示形式为HEAD@{0}、HEAD@{1}、HEAD@{2}...同样HEAD值的数字越小，表示版本越新，数字越大表示版本越旧。
+- 操作描述：记录了本次是哪种操作，以及操作时编写的描述信息。
+- 示例
+  - 查看历史版本记录：git reflog
+  - 查看历史版本记录-指定显示条数：git reflog -n
+  - 显示指定时间之后的提交(不包含当前日期--since，--affter)：git reflog --after={2018-04-18}
+  - 显示指定时间之前的提交(包含当前日期--until，--before)：git reflog --before={1.day.ago}
+
+
+
+    $ git reflogcebe294 HEAD@{0}: reset: moving to HEAD^deb9eb3 HEAD@{1}: commit: add commit.txtcebe294 HEAD@{2}: commit: add diff.txtbbe2af5 HEAD@{3}: commit: test6237009 HEAD@{4}: commit: commit78ea960 HEAD@{5}: commit: git commit test7e7c298 HEAD@{6}: commit: testfb89408 HEAD@{7}: commit (initial): test$ git reflog -3cebe294 HEAD@{0}: reset: moving to HEAD^deb9eb3 HEAD@{1}: commit: add commit.txtcebe294 HEAD@{2}: commit: add diff.txt$ git reflog --after={2018-05-25}cebe294 HEAD@{0}: reset: moving to HEAD^deb9eb3 HEAD@{1}: commit: add commit.txtcebe294 HEAD@{2}: commit: add diff.txtbbe2af5 HEAD@{3}: commit: test6237009 HEAD@{4}: commit: commit78ea960 HEAD@{5}: commit: git commit test7e7c298 HEAD@{6}: commit: testfb89408 HEAD@{7}: commit (initial): test
+
+git rm
+
+  用于从工作区和索引中删除文件。
+
+- 摘要
+
+
+
+    git rm [-f | --force] [-n] [-r] [--cached] [--ignore-unmatch] [--quiet] [--] <file>…
+
+- 概述
+  从索引中删除文件，或从工作树和索引中删除文件。 git rm不会从您的工作目录中删除文件。 (没有任何选项只能从工作树中删除文件，并将其保留在索引中)要删除的文件必须与分支的提示相同，并且在索引中不能对其内容进行更新，尽管可以使用-f选项覆盖(默认行为)。 当给出--cached时，暂存区内容必须与分支的提示或磁盘上的文件相匹配，从而仅将文件从索引中删除。
+使用 git rm来删除文件，同时还会将这个删除操作记录下来；而使用 rm 来删除文件，仅仅是删除了物理文件，没有将其从 git 的记录中剔除。
+直观的来讲，git rm 删除过的文件，执行 git commit 提交时，会自动将删除该文件的操作提交上去。
+而对于用 rm命令直接删除的文件，执行 git commit 提交时，则不会将删除该文件的操作提交上去。不过不要紧，即使你已经通过 rm 将某个文件删除掉了，也可以再通过 git rm 命令重新将该文件从 git 的记录中删除掉，这样的话，在执行 git commit 以后，也能将这个删除操作提交上去。
+如果之前不小心用 rm命令删除了一大批文件呢？如此时用 git rm 逐个地再删除一次就显得相当卵痛了。可如下的方式做提交：git commit -am "commit message or mark"
+- 示例
+  - 删除文件：git rm <file>
+  - 删除文件夹：git rm <dir>
+
+
+
+    $ lsREADME.md   commit.txt  diff.txt    reset.txt   reset2.txt  test.txt$ git rm reset2.txt$ git statusOn branch masterYour branch is based on 'origin/master', but the upstream is gone.  (use "git branch --unset-upstream" to fixup)Changes to be committed:  (use "git reset HEAD <file>..." to unstage)    deleted:    reset2.txt$ lsREADME.md   commit.txt  diff.txt    reset.txt   test.txt
+
+git mv
+
+  用于移动或重命名文件，目录或符号链接。
+
+- 摘要
+
+
+
+    git mv <options>… <args>…
+
+- 概述
+  移动或重命名文件，目录或符号链接。移动文件时，移动目录必须存在。
+- 示例
+  - 重命名文件：git mv <file1> <file2>
+  - 移动文件到指定目录：git mv <file> <dir>
+
+
+
+    $ git mv reset.txt reset2.txt$ git status On branch masterYour branch is based on 'origin/master', but the upstream is gone.  (use "git branch --unset-upstream" to fixup)Changes to be committed:  (use "git reset HEAD <file>..." to unstage)    renamed:    reset.txt -> reset2.txt
+
+git pull
+
+  用于从另一个存储库或本地分支获取并集成(整合)。git pull命令的作用是：取回远程主机某个分支的更新，再与本地的指定分支合并。
+
+- 摘要
+
+
+
+    git pull [options] [<repository> [<refspec>…]]
+
+- 概述
+  将远程存储库中的更改合并到当前分支中。在默认模式下，git pull是git fetch后跟git merge FETCH_HEAD的缩写。更准确地说，git pull使用给定的参数运行git fetch，并调用git merge将检索到的分支头合并到当前分支中。 如果使用--rebase，它运行是git rebase而不是git merge。
+- 示例
+
+
+
+    $ git pull https://github.com/huangyangneng/demo.git master:masterAlready up-to-date.
+
+git push
+
+  用于将本地分支的更新，推送到远程仓库。
+
+- 摘要
+
+
+
+    git push [--all | --mirror | --tags] [--follow-tags] [--atomic] [-n | --dry-run] [--receive-pack=<git-receive-pack>]       [--repo=<repository>] [-f | --force] [-d | --delete] [--prune] [-v | --verbose]       [-u | --set-upstream] [--push-option=<string>]       [--[no-]signed|--signed=(true|false|if-asked)]       [--force-with-lease[=<refname>[:<expect>]]]       [--no-verify] [<repository> [<refspec>…]]
+
+- 概述
+  使用本地引用更新远程引用，同时发送完成给定引用所需的对象。可以在每次推入存储库时，通过在那里设置挂钩触发一些事件。当命令行不指定使用<repository>参数推送的位置时，将查询当前分支的branch.*.remote配置以确定要在哪里推送。 如果配置丢失，则默认为origin。
+- 示例
+  - 将本地的master分支推送到origin主机的master分支。如果master不存在，则会被新建:git push origin master
+  - 当前分支与远程分支之间存在追踪关系，则本地分支和远程分支都可以省略：git push origin
+  - 如果当前分支只有一个追踪分支，那么主机名都可以省略：git push
+  - 如果当前分支与多个主机存在追踪关系，则可以使用-u选项指定一个默认主机，这样后面就可以不加任何参数使用git push：git push -u origin master
+
+
+
+    $ git pushUsername for 'https://github.com': huangyangnengPassword for 'https://huangyangneng@github.com': Counting objects: 37, done.Delta compression using up to 8 threads.Compressing objects: 100% (25/25), done.Writing objects: 100% (37/37), 2.94 KiB | 0 bytes/s, done.Total 37 (delta 7), reused 0 (delta 0)remote: Resolving deltas: 100% (7/7), done.To https://github.com/huangyangneng/demo.git * [new branch]      master -> master
+
+分支管理
+
+  几乎所有的版本控制系统都以某种形式支持分支。 使用分支意味着你可以把你的工作从开发主线上分离开来，以免影响开发主线。 在很多版本控制系统中，这是一个略微低效的过程——常常需要完全创建一个源代码目录的副本。对于大项目来说，这样的过程会耗费很多时间。
+  Git 处理分支的方式可谓是难以置信的轻量，创建新分支这一操作几乎能在瞬间完成，并且在不同分支之间的切换操作也是一样便捷。
+  当我们用git init初始化一个仓库时，此时git会默认帮我们创建一个主分支，即master分支。以及一个指向master分支的HEAD指针。一开始，master分支是一条线，Git用master指向最新的提交，再用HEAD指向master，就能确定当前分支，以及当前分支的提交点：
+
+
+
+  每次提交，master分支都会向前移动一步，HEAD始终指向master。这样，随着你不断提交，master分支的线也越来越长。
+  但我们创建一个新的分支并切换到新分支时，比如branchtest，此时git会新建一个可移动的指针，叫做branchtest，指向master相同的位置，再把HEAD指向branchtest，就表示当前分支在branchtest上：
+
+
+
+  从上面我们可以看出，git创建分支是很快的，因为就创建了一个新的指针。切换分支也是很快的，因为就把HEAD指针指到对应的分支上面。
+  然后我们在新的分支上修改提交，branchtest指针就向前移动，而master分支位置不变。
+
+
+
+  当我们在branchtest上面的工作做完后，就可以把branchtest分支合并到master分支了。git分支合并也很快，只需要把master指向当前的提交就完成了合并。
+
+
+
+  当我们把branchtest分支合并到master分支后，如果不需要branchtest分支了，我们就可以删除掉branchtest分支了，git删除分支就是把branchtest指针删除掉。
+
+
+
+
+
+branch
+
+  用于列出，创建或删除分支。
+
+- 摘要
+
+
+
+    git branch [--color[=<when>] | --no-color] [-r | -a]    [--list] [-v [--abbrev=<length> | --no-abbrev]]    [--column[=<options>] | --no-column] [--sort=<key>]    [(--merged | --no-merged) [<commit>]]    [--contains [<commit]] [--no-contains [<commit>]]    [--points-at <object>] [--format=<format>] [<pattern>…]git branch [--track | --no-track] [-l] [-f] <branchname> [<start-point>]git branch (--set-upstream-to=<upstream> | -u <upstream>) [<branchname>]git branch --unset-upstream [<branchname>]git branch (-m | -M) [<oldbranch>] <newbranch>git branch (-c | -C) [<oldbranch>] <newbranch>git branch (-d | -D) [-r] <branchname>…git branch --edit-description [<branchname>]
+
+- 概述
+  如果给出了--list或者如果没有非选项参数，则列出现有的分支; 当前分支将以星号突出显示。 选项-r导致远程跟踪分支被列出，而选项-a显示本地和远程分支。 如果给出了一个<pattern>，它将被用作一个shell通配符，将输出限制为匹配的分支。 如果给出多个模式，如果匹配任何模式，则显示分支。 请注意，提供<pattern>时，必须使用--list; 否则命令被解释为分支创建。
+- 示例
+  - 查看当前有哪些分支：git branch or git branch --list
+  - 新建一个分支：git branch <branchName>
+  - 切换到某一个分支：git checkout <branchName>
+  - 查看本地和远程分支：git branch -a
+  - 重命名分支：git branch -m or -M <oldBranchName> <newBranchName>
+  - 删除分支：git branch -d or -D <branchName>
+  - 删除远程分支：git branch -r -d origin/<branchName> and git push origin :<branchName>
+
+
+
+    #查看当前有哪些分支$ git branch* master#新建分支$ git branch branchtest$ git branch  branchtest* master#切换到某个分只$ git checkout branchtest$ git branch* branchtest  master#查看本地和远程分支$ git branch -a * branchtest  master  remotes/origin/master#重命名分支$ git branch -m branchtest branchtest1$ git banch  branchtest1* master#删除分支$ git branch -d branchtest1Deleted branch branchtest1 (was 35306f2).$ git branch* master
+
+git checkout
+
+  用于切换分支或恢复工作树文件。
+
+- 摘要
+
+
+
+    git checkout [-q] [-f] [-m] [<branch>]git checkout [-q] [-f] [-m] --detach [<branch>]git checkout [-q] [-f] [-m] [--detach] <commit>git checkout [-q] [-f] [-m] [[-b|-B|--orphan] <new_branch>] [<start_point>]git checkout [-f|--ours|--theirs|-m|--conflict=<style>] [<tree-ish>] [--] <paths>…git checkout [<tree-ish>] [--] <pathspec>…git checkout (-p|--patch) [<tree-ish>] [--] [<paths>…]
+
+- 概述
+  更新工作树中的文件以匹配索引或指定树中的版本。如果没有给出路径,git checkout还会更新HEAD，将指定的分支设置为当前分支。
+- 示例
+  - 切换到指定分支：git checkout branchName
+  - 创建并切换到指定分支：git checkout -b branchName
+  - 从另一个提交或分支中取出文件：git checkout <commitId or branchName> <file>
+  - 从缓存区中恢复文件：git checkout <file>，注意这个操作是不可逆的，当执行这个操作，会把工作区中当前文件为缓存的修改重置掉。
+
+
+
+    $ git checkout -b branchtest #创建并切换到branchtest分支$ git branch #查看所有的分支，当前分支前面有个*号* branchtest  master$ git checkout master #切换到master分支$ git branch  branchtest* master$ vi reset2.txt #在branchtest 分支上新增一个文件，内容为reset$ git add reset2.txt$ git commit -m "reset2.txt"$ git checkout master$ git checkout branchtest reset2.txt$ ls #可以看的在master分支上也有reset2.txt文件README.md   commit.txt  diff.txt    reset.txt   reset2.txt  test.txt 
+
+merge
+
+  用于将两个或两个以上的分支合并一起。
+
+- 摘要
+
+
+
+    git merge [-n] [--stat] [--no-commit] [--squash] [--[no-]edit]    [-s <strategy>] [-X <strategy-option>] [-S[<keyid>]]    [--[no-]allow-unrelated-histories]    [--[no-]rerere-autoupdate] [-m <msg>] [<commit>…]git merge --abortgit merge --continue
+
+- 概述
+  将命名约定的更改合并到当前分支中。这个命令被git pull 合并来自另一个存储库的更改，并且可以手工使用以将更改从一个分支合并到另一个分支。
+- 示例
+  - 合并分支到当前分支，自动进行新的提交： git merge <branchName>
+  - 合并分支到当前分支中，但不要自动进行新的提交：git merge --no-commit <branchName>
+  - 合并多个分支到当前分支：git merge <branchName1> <branchName2> <branchNameN> -m "message"
+- 查看分支合并情况：git log --graph --pretty=oneline --abbrev-commit
+
+
+
+    #合并分支到当前分支，首先我们在branchtest分支新建一个文件branchtest.txt，内容为branchtest，然后提交；再l s切换到master分支，进行合并，会发现master分支上有branchtest.txt文件$ echo "branchtest" > branchtest.txt$ git add -A$ git commit -m "new branchtest.txt"[branchtest e4a8286] new branchtest.txt 1 file changed, 1 insertion(+) create mode 100644 branchtest.txt$ git checkout branchtestSwitched to branch 'master'Your branch is up-to-date with 'origin/master'.$ git merge branchtestUpdating 35306f2..e4a8286Fast-forward branchtest.txt | 1 + 1 file changed, 1 insertion(+) create mode 100644 branchtest.txt
+
+
+
+分支合并图.png
+
+mergetool
+
+  用于运行合并冲突解决工具来解决合并冲突。
+
+- 摘要
+
+
+
+    git mergetool [--tool=<tool>] [-y | --[no-]prompt] [<file>…]
+
+- 概述
+  git mergetool命令用于运行合并冲突解决工具来解决合并冲突。使用git mergetool运行合并实用程序来解决合并冲突。它通常在git合并后运行。
+如果给出一个或多个<file>参数，则将运行合并工具程序来解决每个文件的差异(跳过那些没有冲突的文件)。 指定目录将包括该路径中的所有未解析文件。 如果没有指定<file>名称，git mergetool将在具有合并冲突的每个文件上运行合并工具程序。
+- 示例
+
+
+
+    #首先我们分别进入branchtest 和branchtest2 分支，然后修改branchtest.txt文件内容，并提交。然后切换到master分支，把这两个分支合并到master，就会发现有冲突，然后我们用git mergetool解决合并冲突后，在提交；$ git merge branchtest branchtest2 -m "merge branchtest branchtest2 to merge"Trying simple merge with branchtestSimple merge did not work, trying automatic merge.Auto-merging branchtest.txtERROR: content conflict in branchtest.txtfatal: merge program failedAutomated merge did not work.Should not be doing an Octopus.Merge with strategy octopus failed.$ git mergetoolThis message is displayed because 'merge.tool' is not configured.See 'git mergetool --tool-help' or 'git help config' for more details.'git mergetool' will now attempt to use one of the following tools:tortoisemerge emerge vimdiffMerging:branchtest.txtNormal merge conflict for 'branchtest.txt':  {local}: modified file  {remote}: modified fileHit return to start merge resolution tool (vimdiff):#我们输入文件名称，然后可以看到文件的冲突，我们修改完冲突后保存再提交。
+
+
+
+mergetool命令工具.png
+
+git stash
+
+  用于将更改储藏在脏工作目录中。
+
+- 摘要
+
+
+
+    git stash list [<options>]git stash show [<stash>]git stash drop [-q|--quiet] [<stash>]git stash ( pop | apply ) [--index] [-q|--quiet] [<stash>]git stash branch <branchname> [<stash>]git stash [push [-p|--patch] [-k|--[no-]keep-index] [-q|--quiet]         [-u|--include-untracked] [-a|--all] [-m|--message <message>]         [--] [<pathspec>…]]git stash cleargit stash create [<message>]git stash store [-m|--message <message>] [-q|--quiet] <commit>
+
+- 概述
+  当要记录工作目录和索引的当前状态，但想要返回到干净的工作目录时，则使用git stash。 该命令保存本地修改，并恢复工作目录以匹配HEAD提交。
+这个命令所储藏的修改可以使用git stash list列出，使用git stash show进行检查，并使用git stash apply恢复(可能在不同的提交之上)。调用没有任何参数的git stash相当于git stash save。 默认情况下，储藏列表为“分支名称上的WIP”，但您可以在创建一个消息时在命令行上给出更具描述性的消息。
+- 示例
+  - 把当前工作现场“储藏”起来：git stash
+  - 查看现有的储藏：git stash list
+  - 恢复工作区：git stash apply(恢复) and git stash drop(删除stash内容) or git stash pop(恢复并删除stash内容)
+
+
+
+    $ git statusOn branch masterYour branch is ahead of 'origin/master' by 12 commits.  (use "git push" to publish your local commits)Changes to be committed:  (use "git reset HEAD <file>..." to unstage)    modified:   branchtest.txt$ git stashSaved working directory and index state WIP on master: 4391d47 testHEAD is now at 4391d47 test$ git statusOn branch masterYour branch is ahead of 'origin/master' by 12 commits.  (use "git push" to publish your local commits)nothing to commit, working directory clean$ git stash liststash@{0}: WIP on master: 4391d47 test$ git stash popOn branch masterYour branch is ahead of 'origin/master' by 12 commits.  (use "git push" to publish your local commits)Changes not staged for commit:  (use "git add <file>..." to update what will be committed)  (use "git checkout -- <file>..." to discard changes in working directory)    modified:   branchtest.txtno changes added to commit (use "git add" and/or "git commit -a")Dropped refs/stash@{0} (c73b9457deff50245ba42fe6ac7e722c679ec43b)
+
+标签管理
+
+git tag
+
+  用于创建，列出，删除或验证使用GPG签名的标签对象。同大多数 VCS 一样，Git 也可以对某一时间点上的版本打上标签。在发布某个软件版本(比如 v1.0 等等)的时候，经常这么做。
+
+- 摘要
+
+
+
+    git tag [-a | -s | -u <keyid>] [-f] [-m <msg> | -F <file>] [-e]    <tagname> [<commit> | <object>]git tag -d <tagname>…git tag [-n[<num>]] -l [--contains <commit>] [--no-contains <commit>]    [--points-at <object>] [--column[=<options>] | --no-column]    [--create-reflog] [--sort=<key>] [--format=<format>]    [--[no-]merged [<commit>]] [<pattern>…]git tag -v [--format=<format>] <tagname>…
+
+- 概述
+  在refs/tags/中添加标签引用，除此之外还可以提供了-d/-l/-v来删除，列出或验证标签。
+tag 用于创建一个标签用于在开发阶段，某个阶段的完成，创建一个版本，在开发中都会使用到, 可以创建一个tag来指向软件开发中的一个关键时期，比如版本号更新的时候可以建一个version1.0, version1.2之类的标签，这样在以后回顾的时候会比较方便。除非指定-f选项，否则不能创建已经存在的标签。
+如果传递了-a，-s或-u <keyid>中的一个，该命令将创建一个标签对象，并且需要一个标签消息。 除非-m <msg>或-F <file>，否则将启动一个编辑器，供用户输入标签消息。
+- 示例
+  - 创建标签(默认为HEAD，也可以指定一个commit id)：git tag <tagName> or git tag -a <tagName> -m "标签说明" or git tag <tagName> <commitId>
+  - 列显已有的标签：git tag or git tag -l <tagName>(列出指定的标签)
+  - 删除标签：git tag -d <tagName>
+
+
+
+    #新建标签$ git tag -a v1.0.0 -m "first tag"# 列出也有标签$ git tagv1.0.0# git show 命令查看相应标签的版本信息，并连同显示打标签时的提交对象。$ git show v1.0.0tag v1.0.0Tagger: huangyangneng <test@qq.com>Date:   Tue May 29 16:21:58 2018 +0800first tagcommit 3e579e852686a0614ea0f98e65cc8a74d6aaf872Merge: 8b6af52 eb9766f 29e1a25Author: huangyangneng <test@qq.com>Date:   Tue May 29 15:12:15 2018 +0800    update branchtestdiff --cc branchtest.txtindex 693fd50,26c1c20,0d5c17e..8a1c860--- a/branchtest.txt+++ b/branchtest.txt@@@@ -1,1 -1,2 -1,2 +1,3 @@@@   branchtest+ +test++ tesetsetlocalhost:demo huangyangneng#删除标签$ git tag -d v1.0.0Deleted tag 'v1.0.0' (was 37b4083)
+
+---
+
+  整理文章主要为了自己日后复习用，文章中可能会引用到别的博主的文章，如涉及到博主的版权问题，请博主联系我。
